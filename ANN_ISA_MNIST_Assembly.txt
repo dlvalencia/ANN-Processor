@@ -1,0 +1,104 @@
+#New ISA MNIST Program
+#784 Inputs, 20 Nodes in HL1, 15 Nodes in HL2, 10 Nodes in Output Layer
+#Fully Feed-Forward Structure allows simple nested loops
+#Function to use: tanh (Function Code: 00)
+#In Code: Processing 10 nodes at once
+initialSetup:
+	source 0 #LPU Input Source: Input Mem
+	sfunct 0 #LPU Function: tanh
+	addi $a0, $a1, 255 #$a1 = 255
+	addi $a1, $a1, 255 #$a1 = 512
+	addi $a1, $a1, 255 #$a1 = 765
+	addi $a1, $a1, 19  #$a1 = 784 <- Input Layer Max Count
+	addi $a0, $a2, 10  #$a2 =  10 <- LPU Size (for iterative looping)
+	addi $a0, $a3, 2 #$a3 = 2 (HL1 with 20 nodes will need 20/10 = 2 iterations
+	add $a0, $a0, $b0 #$b0 = 0, used as looping variable for weight counter
+	add $a0, $a0, $b4 #$b4 = 0, used to store write address for LPU output of each layer
+	add $a0, $a0, $c0 #$c0 = 0, used as layer block counter. For HL1, counts to a3 (2 sub-blocks: 0, 1).
+HL1_SubBlock_Setup:
+	add $a0, $a0, $b1 #$b1 = 0, used as looping variable for input counter
+	add $a0, $a0, $b2 #$b2 = 0, used as looping variable for LPU selector for loading weights
+	add $a0, $a0, $b3 #$b3 = 0, used as looping variable for LPU selector for indexing LPU outputs
+HL1_WeightLoading:
+	lw $b0, $b2 #Load weights from b0 (weight address counter) to node b2 (LPU select counter)
+	addi $b0, $b0, 1 #Increment $b0
+	addi $b2, $b2, 1 #Increment $b2
+	beq $b2, $a2, HL1_InputLoading #If we have performed 10 LPU weight loads, move to input loading
+	jump HL1_WeightLoading #Jump Back to weight loading
+HL1_InputLoading:
+	la $b1 #Load InMem($b1) to all nodes
+	addi $b1, $b1, 1 #Increment input address variable
+	beq $b1, $a1, HL1_OutputWriting
+	jump HL1_InputLoading
+HL1_OutputWriting:
+	wm $b3, $b4 #Write from LPU addressed by Mem($b3) into NodeMem($b4)
+	addi $b3, $b3, 1 #Increment the LPU selector
+	addi $b4, $b4, 1 #Increment the write address
+	beq $b3, $a2, HL1_Block_Finish
+	jump HL1_OutputWriting
+HL1_Block_Finish:
+	addi $c0, $c0, 1 #Increment the sub-block counter
+	beq $c0, $a3, HL2_Setup #If true, HL1 finished, start HL2 with variable setup
+	jump HL1_SubBlock_Setup
+HL2_Setup:
+	#In HL2, we need to set the source to Node Mem
+	source 1 #LPU Input Source: Node Mem, function remains tanh
+	addi $a0, $a1, 20 #HL2 input size max count
+	add $a0, $a0, $c0 #$c0 = 0, used as layer block counter. For HL2, counts to a3 (2 sub-blocks: 0, 1).
+HL2_SubBlock_Setup:
+	add $a0, $a0, $b1 #$b1 = 0, used as looping variable for input counter
+	add $a0, $a0, $b2 #$b2 = 0, used as looping variable for LPU selector for loading weights into
+	add $a0, $a0, $b3 #$b3 = 0, used as looping variable for LPU selector for storing LPU outputs
+	addi $a0, $a2, 10 #$a2 = 10, counter for how many LPUs used in this iteration. Default: 10
+	beq $c0, $a0, HL2_WeightLoading #If it is currently the first iteration, go directly to Weight Loading
+	addi $a0, $a2, 5 #$a2 = 5, if branch is not met, it means that this is the second iteration, which we have 5 LPUs to use
+HL2_WeightLoading:
+	lw $b0, $b2 #Load weights from b0 (weight address counter) to node b2 (LPU select counter)
+	addi $b0, $b0, 1 #Increment $b0
+	addi $b2, $b2, 1 #Increment $b2
+	beq $b2, $a2, HL2_InputLoading #If we have performed 10 LPU weight loads, move to input loading
+	jump HL1_WeightLoading #Jump back to weight loading
+HL2_InputLoading:
+	la $b1 #Load NodeMem($b1) to all nodes
+	addi $b1, $b1, 1 #Increment input address variable
+	beq $b1, $a1, HL2_OutputWriting
+	jump HL2_InputLoading
+HL2_OutputWriting:
+	wm $b3, $b4 #Write from LPU addressed by Mem($b3) into NodeMem($b4)
+	addi $b3, $b3, 1 #Increment the LPU selector
+	addi $b4, $b4, 1 #Increment the write address
+	beq $b3, $a2, HL2_Block_Finish
+	jump HL2_OutputWriting
+HL2_Block_Finish:
+	addi $c0, $c0, 1 #Increment the sub-block counter
+	beq $c0, $a3, OL_Setup #If true, HL2 finished, start OL with variable setup
+	jump HL2_SubBlock_Setup
+OL_Setup:
+	addi $a0, $a1, 15 #OL input size max count
+	addi $a0, $b1, 20 #$b1 = 20, input address start point (based on size of two previous layer)
+	add $a0, $a0, $b5 #$b5 = 0, used as input counter
+	add $a0, $a0, $b2 #$b2 = 0, used as looping variable for LPU selector for loading weights into
+	add $a0, $a0, $b3 #$b3 = 0, used as looping variable for LPU selector for storing LPU outputs
+	addi $a0, $a2, 10 #$a2 = 10, counter for how many LPUs used in this iteration. Default: 10
+OL_WeightLoading:
+	lw $b0, $b2 #Load weights from b0 to node b2
+	addi $b0, $b0, 1 #Increment $b0
+	addi $b2, $b2, 1 #Increment $b2
+	beq $b2, $a2, OL_InputLoading
+	jump OL_WeightLoading
+OL_InputLoading:
+	la $b1 #Load NodeMem($b1) to all nodes
+	addi $b1, $b1, 1 #Increment $b1
+	addi $b5, $b5, 1 #Increment $b5
+	beq $b5, $a1, OL_OutputWriting
+	jump OL_InputLoading
+OL_OutputWriting:
+	wm $b3, $b4 #Write from LPUs($b3) -> NodeMem($b4)
+	addi $b3, $b3, 1 #Increment LPU Selector
+	addi $b4, $b4, 1 #Increment write address
+	beq $b3, $a2, NetworkFinish
+	jump OL_OutputWriting
+NetworkFinish:
+	nop
+	nop
+	nop

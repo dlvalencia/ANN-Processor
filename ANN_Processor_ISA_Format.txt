@@ -1,0 +1,278 @@
+Updated ANN Processor Instructions
+----------------------------------
+
+==============================================================================
+V-Type Instructions
+----------------------------------
+==============================================================================
+Add Registers
+
+ADD <src1> <src2> <dst>
+OpCode = 0001
+
+$dst = $src1 + $src2;
+
+Decoder output control signals:
+ALUCtrl = 00, ALUSrc = 0, WriteSrc = 0, MAC_PE_En = 0, JumpEN = 0, BranchEN = 0, RF_En = 1,
+Bus_PE_En = 0, FuncEN = 0, NodeMemWE = 0, writeDest = 1, sourceEN = 0, OneHotCtrl = 0;
+
+Encoding
+-------------------------------------
+|0001|---src1---|---src2---|---dst---|
+-------------------------------------
+==============================================================================
+Add Immediate
+
+ADDI <src1> <dst> <imm>
+OpCode = 0010
+
+$dst = $src1 + SignExt(imm); (where SignExt(imm) is the sign extension of imm)
+
+Decoder output control signals:
+ALUCtrl = 00, ALUSrc = 1, WriteSrc = 0, MAC_PE_En = 0, JumpEN = 0, BranchEN = 0, RF_En = 1,
+Bus_PE_En = 0, FuncEN = 0, NodeMemWE = 0, writeDest = 0, sourceEN = 0, OneHotCtrl = 0;
+
+Encoding
+-------------------------------------
+|0010|---src1---|----dst---|---imm---|
+-------------------------------------
+==============================================================================
+Subtract Registers
+
+SUB <src1> <src2> <dst>
+OpCode = 0011
+
+$dst = $src1 + $src2;
+
+Decoder output control signals:
+ALUCtrl = 01, ALUSrc = 0, WriteSrc = 0, MAC_PE_En = 0, JumpEN = 0, BranchEN = 0, RF_En = 1,
+Bus_PE_En = 0, FuncEN = 0, NodeMemWE = 0, writeDest = 1, sourceEN = 0, OneHotCtrl = 0;
+
+Encoding
+-------------------------------------
+|0011|---src1---|----src2---|---dst--|
+-------------------------------------
+==============================================================================
+Subtract Immediate
+
+SUBI <src1> <dst> <imm>
+OpCode = 0100
+
+$dst = $src1 + SignExt(imm);
+
+Decoder output control signals:
+ALUCtrl = 01, ALUSrc = 1, WriteSrc = 0, MAC_PE_En = 0, JumpEN = 0, BranchEN = 0, RF_En = 1,
+Bus_PE_En = 0, FuncEN = 0, NodeMemWE = 0, writeDest = 0, sourceEN = 0, OneHotCtrl = 0;
+
+Encoding
+-------------------------------------
+|0100|---src1---|----dst---|---imm---|
+-------------------------------------
+==============================================================================
+Loop Control Instructions
+==============================================================================
+Branch on Equal
+
+BEQ <src1> <src2> <offset>
+OpCode = 0101
+
+PC = (src1 == src2) ? PC + offset : PC + 1;
+
+Decoder output control signals:
+ALUCtrl = 00, ALUSrc = X, WriteSrc = X, MAC_PE_En = 0, JumpEN = 0, BranchEN = 1, RF_En = 0,
+Bus_PE_En = 0, FuncEN = 0, NodeMemWE = 0, writeDest = 0, sourceEN = 0, OneHotCtrl = 0;
+
+Encoding
+-------------------------------------
+|0101|---src1---|---src2---|---ofst--|
+-------------------------------------
+*Limitation: Branch target must be within 255 ((2^8)-1) instructions
+==============================================================================
+Jump
+
+JUMP <offset>
+OpCode = 0110
+
+PC = {PC[31:28], offset}
+
+Decoder output control signals:
+ALUCtrl = 00, ALUSrc = X, WriteSrc = X, MAC_PE_En = 0, JumpEN = 1, BranchEN = 0, RF_En = 0,
+Bus_PE_En = 0, FuncEN = 0, NodeMemWE = 0, writeDest = 0, sourceEN = 0, OneHotCtrl = 0;
+
+Encoding
+-------------------------------------
+|0110|------------offset-------------|
+-------------------------------------
+==============================================================================
+
+N-Type Instructions: Neural Network Specific Instructions
+
+Set Function : Sets the activation function to use. Advised to set prior to weight loading. Intention is that
+all neurons in a given layer use the same network
+
+SFUNCT <function code>
+OpCode = 0111
+
+function codes: tanh = 0, sigmoid = 1, relu = 2;
+
+Decoder output control signals:
+ALUCtrl = X, ALUSrc = X, WriteSrc = X, MAC_PE_En = 0, JumpEN = 0, BranchEN = 0, RF_En = 0,
+Bus_PE_En = 0, FuncEN = 1, NodeMemWE = 0, writeDest = 0, sourceEN = 0, OneHotCtrl = 0;
+
+Encoding
+-------------------------------------
+|0111|----------------------------|FC|
+-------------------------------------
+==============================================================================
+Set Source: Sets the source where the next inputs will be loaded from. Advised to be used prior
+to loading inputs to a given hidden layer.
+
+SOURCE <source code>
+
+OpCode = 1110
+
+source codes: Input Memory = 0, Node Memory = 1, RegFile = 2
+
+Decoder output control signals:
+ALUCtrl = X, ALUSrc = X, WriteSrc = X, MAC_PE_En = 0, JumpEN = 0, BranchEN = 0, RF_En = 0,
+Bus_PE_En = 0, FuncEN = 0, NodeMemWE = 0, writeDest = 0, sourceEN = 1, OneHotCtrl = 0;
+
+Encoding
+-------------------------------------
+|1110|----------------------------|SC|
+-------------------------------------
+==============================================================================
+
+Load Weights: Load weights into destination PE
+
+LW <raddr> <dst node>
+OpCode = 1000
+
+WeightMem($raddr) -> dst node
+
+Decoder output control signals:
+ALUCtrl = X, ALUSrc = X, WriteSrc = X, MAC_PE_En = 0, JumpEN = 0, BranchEN = 0, RF_En = 0,
+Bus_PE_En = 1, FuncEN = 0, NodeMemWE = 0, writeDest = 0, sourceEN = 0, OneHotCtrl = 0;
+
+OneHotCtrl: Direct DST = 0, All Mode = 1, Exclude DST = 2;
+
+Encoding
+-------------------------------------
+|1000|---raddr--|----dst---|---------|
+-------------------------------------
+==============================================================================
+
+Load All: Read value from a particular memory into all PEs
+
+LA <raddr> <src>
+OpCode = 1001
+
+All PEs <- (src) ? Node Memory : Input Memory
+
+Decoder output control signals:
+ALUCtrl = X, ALUSrc = X, WriteSrc = X, MAC_PE_En = 1, JumpEN = 0, BranchEN = 0, RF_En = 0,
+Bus_PE_En = 0, FuncEN = 0, NodeMemWE = 0, writeDest = 0, sourceEN = 0, OneHotCtrl = 1;
+
+OneHotCtrl: Direct DST = 0, All Mode = 1, Exclude DST = 2;
+
+Encoding
+-------------------------------------
+|1001|---raddr--|----------|------src| |<--- src deprecated 9/6/18
+-------------------------------------
+==============================================================================
+
+Load All Except: Read value from a particular memory into all but one PE
+
+LX <raddr> <excl> <src>
+OpCode = 1010
+
+All PE except PEs(excl) <- (src) ? Node Memory : Input Memory
+
+Decoder output control signals:
+ALUCtrl = X, ALUSrc = X, WriteSrc = X, MAC_PE_En = 1, JumpEN = 0, BranchEN = 0, RF_En = 0,
+Bus_PE_En = 0, FuncEN = 0, NodeMemWE = 0, writeDest = 0, sourceEN = 0, OneHotCtrl = 2;
+
+OneHotCtrl: Direct DST = 0, All Mode = 1, Exclude DST = 2;
+
+Encoding
+-------------------------------------
+|1010|---raddr--|---excl---|------src|
+-------------------------------------
+==============================================================================
+
+Load Single: Read value from particular memory into a single PE
+
+LS <raddr> <dst node> <src>
+OpCode = 1011
+
+PEs(dst nodes) <- src ? Node Memory : Input Memory
+
+Decoder output control signals:
+ALUCtrl = X, ALUSrc = X, WriteSrc = X, MAC_PE_En = 1, JumpEN = 0, BranchEN = 0, RF_En = 0,
+Bus_PE_En = 0, FuncEN = 0, NodeMemWE = 0, writeDest = 0, sourceEN = 0, OneHotCtrl = 0;
+
+OneHotCtrl: Direct DST = 0, All Mode = 1, Exclude DST = 2;
+
+Encoding
+-------------------------------------
+|1011|---raddr--|----dst---|------src|
+-------------------------------------
+==============================================================================
+
+Write to Memory: Write LPU Output
+
+WM <waddr> <dst node>
+OpCode = 1100
+
+Node Memory($waddr) <- PEs($dst node)
+
+Decoder output control signals:
+ALUCtrl = X, ALUSrc = X, WriteSrc = X, MAC_PE_En = 0, JumpEN = 0, BranchEN = 0, RF_En = 0,
+Bus_PE_En = 0, FuncEN = 0, NodeMemWE = 1, writeDest = 0, sourceEN = 0, OneHotCtrl = 0;
+
+Encoding:
+			   Write Address
+     Node source 	vv
+		 vv			vv
+-------------------------------------
+|1100|---dst--|----waddr---|---------|
+-------------------------------------
+==============================================================================
+
+Write to Register File: Write LPU Output to Register File
+
+WRF <waddr> <dst node>
+
+Opcode = 1101
+
+VarRegFile($waddr) <- PEs($dst node)
+
+Decoder output control signals:
+ALUCtrl = X, ALUSrc = X, WriteSrc = 1, MAC_PE_En = 0, JumpEN = 0, BranchEN = 0, RF_En = 1,
+Bus_PE_En = 0, FuncEN = 0, NodeMemWE = 0, writeDest = 0, sourceEN = 0, OneHotCtrl = 0;
+
+Encoding:
+			   Write Address
+     Node source 	vv
+		 vv			vv
+-------------------------------------
+|1100|---dst--|----waddr---|---------|
+-------------------------------------
+
+==============================================================================
+No Operation
+
+NOP
+OpCode = 0000
+
+PC = PC + 1;
+
+Decoder output control signals:
+ALUCtrl = X, ALUSrc = X, WriteSrc = X, MAC_PE_En = 0, JumpEN = 0, BranchEN = 0, RF_En = 0,
+Bus_PE_En = 0, FuncEN = 0, NodeMemWE = 0, writeDest = 0, sourceEN = 0, OneHotCtrl = 0;
+
+Encoding
+-------------------------------------
+|0000|--------|---------|------------|
+-------------------------------------
+==============================================================================

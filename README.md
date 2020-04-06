@@ -1,5 +1,11 @@
 # ANN-Processor
 
+Github repository documenting the ANN Processor's custom instruction set architecture, along with example prorams for feed-forward and recurrent neural networks.
+
+Further detail can be found in the manuscript: D. Valencia, S. F. Fard, and A. Alimohammad, "An Artificial Neural Network Processor with a Custom Instruction Set Architecture for Embedded Applications", under review with the IEEE Transactions on Circuits and Systems I.
+
+
+
 Update Log
 ----------
 

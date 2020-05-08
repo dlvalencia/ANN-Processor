@@ -15,4 +15,4 @@ Update Log
 
 04.06.2020 - Uploaded documentation for custom-developed instruction set architecture.
 
-05.08.2020 - Uploaded example program for executing sentiment analysis RNN on the IMDB dataset.
+05.08.2020 - Uploaded example program for executing sentiment analysis RNN on the IMDB dataset. Also included new directory IMDB_RNN_Params that include the testing data, and trained parameters, in CSV files.
